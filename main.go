@@ -119,6 +119,7 @@ func main() {
 		if update.Message.IsCommand() {
 
 			userID := update.Message.From.ID
+			userName := update.Message.From.UserName
 			chatID := update.Message.Chat.ID
 
 			switch update.Message.Command() {
@@ -129,7 +130,7 @@ func main() {
 					"/kupit"
 				msgHelp := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgHelp)
-				log.Println("Help:", userID)
+				log.Println("Help:", userName)
 
 			case "kahvi":
 				var kuvaus string = update.Message.CommandArguments()
@@ -138,7 +139,7 @@ func main() {
 					bot.Send(liianPitkaMsg)
 				} else {
 					kirjaus(update)
-					log.Println("Kirjaus:", userID, kuvaus)
+					log.Println("Kirjaus:", userName, kuvaus)
 				}
 
 			case "kupit":
@@ -146,7 +147,7 @@ func main() {
 
 				msgStats := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgStats)
-				log.Println("Kupit:", userID)
+				log.Println("Kupit:", userName)
 			}
 		}
 
