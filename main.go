@@ -11,7 +11,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func kirjaus(id int, kahvilaji string, aika int) {
+func kirjaus(update tgbotapi.Update) {
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
@@ -20,23 +20,44 @@ func kirjaus(id int, kahvilaji string, aika int) {
 	}
 	defer conn.Close(context.Background())
 
+	// Muuttujat updatesta
+	var aika int = update.Message.Date
+	var userID int = update.Message.From.ID
+	var updateID int = update.UpdateID
+	var kuvaus string = update.Message.CommandArguments()
+	var nimi string = update.Message.From.UserName
+
 	// Lisää uusi kupillinen
-	var query1 string
-	if kahvilaji == "" {
-		query1 = fmt.Sprint("INSERT INTO juonnit (user_id, aika) VALUES (", id, ", to_timestamp(", aika, "));")
-	} else {
-		query1 = fmt.Sprint("INSERT INTO juonnit (user_id, aika, kahvi) VALUES (", id, ", to_timestamp(", aika, "), '", kahvilaji, "');")
-	}
-	rows, err1 := conn.Query(context.Background(), query1)
-	if err1 != nil {
+	query := "INSERT INTO juonnit (update_id, user_id, aika, kuvaus) VALUES (" +
+		fmt.Sprint(updateID) + ", " +
+		fmt.Sprint(userID) + ", " +
+		"to_timestamp(" + fmt.Sprint(aika) + "), " +
+		"'" + kuvaus + "'" + ");"
+
+	rows, err := conn.Query(context.Background(), query)
+	if err != nil {
 		fmt.Println(rows)
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err1)
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
+	rows.Close()
+
+	// Päivitä nimi nimitauluun
+	query = "INSERT INTO nimet VALUES (" +
+		fmt.Sprint(userID) + ", " +
+		"'" + nimi + "'" + ") " +
+		"ON CONFLICT DO NOTHING;"
+
+	rows, err = conn.Query(context.Background(), query)
+	if err != nil {
+		fmt.Println(rows)
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
 	rows.Close()
 }
 
-func kupit(id int) int {
+func kupit(id int) string {
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
@@ -54,10 +75,20 @@ func kupit(id int) int {
 		os.Exit(1)
 	}
 
-	return kuppeja
+	var txt string
+	if kuppeja == 0 {
+		txt = fmt.Sprint("Et taida olla kovin sivistynyt ihminen.")
+	} else if kuppeja == 1 {
+		txt = fmt.Sprint("Olet juonut yhden kupin kahvia. Tsemppaatko kiitos.")
+	} else {
+		txt = fmt.Sprint("Olet juonut ", kuppeja, " kuppia kahvia.")
+	}
+
+	return txt
 }
 
 func main() {
+
 	err1 := godotenv.Load(".env")
 	if err1 != nil {
 		log.Panic(err1)
@@ -90,29 +121,31 @@ func main() {
 			chatID := update.Message.Chat.ID
 
 			switch update.Message.Command() {
+			case "help":
+				txt := "Uusi kirjaus:\n" +
+					"/kahvi [valinnainen kuvaus]\n" +
+					"Oma kuppimäärä:\n" +
+					"/kupit"
+				msgHelp := tgbotapi.NewMessage(chatID, txt)
+				bot.Send(msgHelp)
+				log.Println("Help:", userID)
+
 			case "kahvi":
-				var kahvilaatu string = update.Message.CommandArguments()
-				if len(kahvilaatu) > 30 {
-					liianPitkaMsg := tgbotapi.NewMessage(chatID, "Liian pitkä nimi kahvillas..")
+				var kuvaus string = update.Message.CommandArguments()
+				if len(kuvaus) > 255 {
+					liianPitkaMsg := tgbotapi.NewMessage(chatID, "Liian pitkä kuvaus..")
 					bot.Send(liianPitkaMsg)
 				} else {
-					aika := update.Message.Date
-					kirjaus(userID, kahvilaatu, aika)
-					log.Println("Kirjaus:", userID, kahvilaatu)
+					kirjaus(update)
+					log.Println("Kirjaus:", userID, kuvaus)
 				}
+
 			case "kupit":
-				kupit := kupit(userID)
-				var txt string
-				if kupit == 0 {
-					txt = fmt.Sprint("Et taida olla kovin sivistynyt ihminen.")
-				} else if kupit == 1 {
-					txt = fmt.Sprint("Olet juonut yhden kupin kahvia. Tsemppaatko kiitos.")
-				} else {
-					txt = fmt.Sprint("Olet juonut ", kupit, " kuppia kahvia.")
-				}
+				txt := kupit(userID)
+
 				msgStats := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgStats)
-				log.Println("Kupit", userID)
+				log.Println("Kupit:", userID)
 			}
 		}
 
