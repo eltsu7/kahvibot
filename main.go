@@ -46,7 +46,8 @@ func kirjaus(update tgbotapi.Update) {
 	query = "INSERT INTO nimet VALUES (" +
 		fmt.Sprint(userID) + ", " +
 		"'" + nimi + "'" + ") " +
-		"ON CONFLICT DO NOTHING;"
+		"ON CONFLICT (user_id) DO UPDATE SET " +
+		"username = EXCLUDED.username"
 
 	rows, err = conn.Query(context.Background(), query)
 	if err != nil {
