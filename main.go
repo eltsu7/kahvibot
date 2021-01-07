@@ -154,15 +154,17 @@ func main() {
 
 			case "kahvi":
 				var kuvaus string = update.Message.CommandArguments()
+
 				if len(kuvaus) > 255 {
-					liianPitkaMsg := tgbotapi.NewMessage(chatID, "Liian pitkä kuvaus..")
-					bot.Send(liianPitkaMsg)
+					log.Println("--Liian pitkä kirjaus:", userName, kuvaus)
+					bot.Send(tgbotapi.NewMessage(chatID, "Liian pitkä kuvaus.."))
 				} else {
-					kirjaus(update, "")
 					log.Println("Kirjaus:", userName, kuvaus)
+					kirjaus(update, "")
 				}
 
 			case "santsi":
+				log.Println("Santsi:", userName)
 				var err string = santsi(update)
 				if err != "" {
 					log.Println("Santsi kusee, ei edellistä kuppia", userName)
@@ -171,11 +173,11 @@ func main() {
 				}
 
 			case "kupit":
+				log.Println("Kupit:", userName)
 				txt := kupit(userID)
 
 				msgStats := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgStats)
-				log.Println("Kupit:", userName)
 			}
 		}
 
