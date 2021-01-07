@@ -28,13 +28,9 @@ func kirjaus(update tgbotapi.Update) {
 	var nimi string = update.Message.From.UserName
 
 	// Lisää uusi kupillinen
-	query := "INSERT INTO juonnit (update_id, user_id, aika, kuvaus) VALUES (" +
-		fmt.Sprint(updateID) + ", " +
-		fmt.Sprint(userID) + ", " +
-		"to_timestamp(" + fmt.Sprint(aika) + "), " +
-		"'" + kuvaus + "'" + ");"
+	sql := "insert into juonnit (update_id, user_id, aika, kuvaus) values ($1, $2, to_timestamp($3), $4)"
 
-	rows, err := conn.Query(context.Background(), query)
+	rows, err := conn.Query(context.Background(), sql, updateID, userID, aika, kuvaus)
 	if err != nil {
 		fmt.Println(rows)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
@@ -43,13 +39,9 @@ func kirjaus(update tgbotapi.Update) {
 	rows.Close()
 
 	// Päivitä nimi nimitauluun
-	query = "INSERT INTO nimet VALUES (" +
-		fmt.Sprint(userID) + ", " +
-		"'" + nimi + "'" + ") " +
-		"ON CONFLICT (user_id) DO UPDATE SET " +
-		"username = EXCLUDED.username"
+	sql = "INSERT INTO nimet VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username"
 
-	rows, err = conn.Query(context.Background(), query)
+	rows, err = conn.Query(context.Background(), sql, userID, nimi)
 	if err != nil {
 		fmt.Println(rows)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
