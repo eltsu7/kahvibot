@@ -11,7 +11,7 @@ import (
 	"github.com/joho/godotenv"
 )
 
-func kirjaus(update tgbotapi.Update) {
+func kirjaus(update tgbotapi.Update, kuvaus string) {
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
@@ -24,7 +24,9 @@ func kirjaus(update tgbotapi.Update) {
 	var aika int = update.Message.Date
 	var userID int = update.Message.From.ID
 	var updateID int = update.UpdateID
-	var kuvaus string = update.Message.CommandArguments()
+	if kuvaus == "" {
+		kuvaus = update.Message.CommandArguments()
+	}
 	var nimi string = update.Message.From.UserName
 
 	// Lisää uusi kupillinen
@@ -50,6 +52,31 @@ func kirjaus(update tgbotapi.Update) {
 	rows.Close()
 }
 
+func santsi(update tgbotapi.Update) string {
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close(context.Background())
+
+	// Hae viimeisimmän kirjatun kupin kuvaus
+	var kuvaus string
+	sql := "SELECT kuvaus FROM juonnit WHERE user_id=$1 ORDER BY id DESC LIMIT 1;"
+	err = conn.QueryRow(context.Background(), sql, update.Message.From.ID).Scan(&kuvaus)
+	if err == pgx.ErrNoRows {
+		return "Ei edellistä kuppia."
+	} else if err != nil {
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Lisää uusi kupillinen vanhalla kuvauksella
+	kirjaus(update, kuvaus)
+	log.Println("Santsi:", update.Message.From.UserName, kuvaus)
+	return ""
+}
+
 func kupit(id int) string {
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
@@ -61,7 +88,7 @@ func kupit(id int) string {
 
 	// Laske kupilliset ja palauta lukumäärä
 	var kuppeja int
-	sql := "select count(*) from juonnit where user_id=$1"
+	sql := "select kupit from kuppilaskuri where user_id=$1"
 	err = conn.QueryRow(context.Background(), sql, id).Scan(&kuppeja)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
@@ -110,16 +137,17 @@ func main() {
 
 		if update.Message.IsCommand() {
 
+			// Muuttujat updatesta
 			userID := update.Message.From.ID
 			userName := update.Message.From.UserName
 			chatID := update.Message.Chat.ID
 
 			switch update.Message.Command() {
 			case "help":
-				txt := "Uusi kirjaus:\n" +
-					"/kahvi [valinnainen kuvaus]\n" +
-					"Oma kuppimäärä:\n" +
-					"/kupit"
+				txt := "Hei minä olen kahvikanalabotti.\n\nKomennot:\n" +
+					"/kahvi [valinnainen kuvaus]\nKirjaa uuden kupillisen.\n" +
+					"/santsi\nKirjaa kupillisen, mutta kopioi kuvauksen sun edellisestä kupista.\n" +
+					"/kupit\nKertoo montako kuppia oot juonu"
 				msgHelp := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgHelp)
 				log.Println("Help:", userName)
@@ -130,8 +158,16 @@ func main() {
 					liianPitkaMsg := tgbotapi.NewMessage(chatID, "Liian pitkä kuvaus..")
 					bot.Send(liianPitkaMsg)
 				} else {
-					kirjaus(update)
+					kirjaus(update, "")
 					log.Println("Kirjaus:", userName, kuvaus)
+				}
+
+			case "santsi":
+				var err string = santsi(update)
+				if err != "" {
+					log.Println("Santsi kusee, ei edellistä kuppia", userName)
+					errMsg := tgbotapi.NewMessage(chatID, err)
+					bot.Send(errMsg)
 				}
 
 			case "kupit":
