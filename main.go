@@ -61,8 +61,8 @@ func kupit(id int) string {
 
 	// Laske kupilliset ja palauta lukumäärä
 	var kuppeja int
-	query := fmt.Sprint("select count(*) from juonnit where user_id=", id)
-	err = conn.QueryRow(context.Background(), query).Scan(&kuppeja)
+	sql := "select count(*) from juonnit where user_id=$1"
+	err = conn.QueryRow(context.Background(), sql, id).Scan(&kuppeja)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
