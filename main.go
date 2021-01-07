@@ -90,7 +90,9 @@ func kupit(id int) string {
 	var kuppeja int
 	sql := "select kupit from kuppilaskuri where user_id=$1"
 	err = conn.QueryRow(context.Background(), sql, id).Scan(&kuppeja)
-	if err != nil {
+	if err == pgx.ErrNoRows {
+		kuppeja = 0
+	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
