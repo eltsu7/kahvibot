@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 	"github.com/jackc/pgx"
@@ -147,6 +148,42 @@ func eiku(update tgbotapi.Update) {
 	rows.Close()
 }
 
+func viimeisimmat(userID int) string {
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close(context.Background())
+
+	sql := "select kuvaus, aika from juonnit where user_id=$1 order by aika desc limit 5"
+
+	rows, _ := conn.Query(context.Background(), sql, userID)
+
+	var viestirivit string
+
+	for rows.Next() {
+		var kuvaus string
+		var aika time.Time
+
+		err := rows.Scan(&kuvaus, &aika)
+
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
+
+		loc, _ := time.LoadLocation("Europe/Helsinki")
+		viestirivit += aika.In(loc).Format("2.1. 15:04") + " " + kuvaus + "\n"
+	}
+
+	if viestirivit == "" {
+		return "Tyhjältä näyttää.."
+	} else {
+		return "Sun viimeisimmät kupit:\n" + viestirivit
+	}
+}
+
 func main() {
 
 	err1 := godotenv.Load(".env")
@@ -222,6 +259,11 @@ func main() {
 			case "eiku":
 				log.Println("Eiku:", userName)
 				eiku(update)
+
+			case "viimeisimmat":
+				log.Println("Viimeisimmät", userName)
+				viesti := viimeisimmat(userID)
+				bot.Send(tgbotapi.NewMessage(chatID, viesti))
 			}
 		}
 	}
