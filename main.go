@@ -109,6 +109,44 @@ func kupit(id int) string {
 	return txt
 }
 
+func eiku(update tgbotapi.Update) {
+	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
+		os.Exit(1)
+	}
+	defer conn.Close(context.Background())
+
+	if update.Message.ReplyToMessage == nil {
+		// Tsekkaa, että on vastattu edes johonkin
+		log.Println("^ Kusi, ei oo vastattu mihinkään")
+		return
+	} else if update.Message.From.ID != update.Message.ReplyToMessage.From.ID {
+		// User id:t ei mätsää
+		log.Println("^ Kusi, ei vastattu omaan viestiin")
+		return
+	} else if update.Message.ReplyToMessage.Command() != "kahvi" {
+		// Tsekkaa, että vastattu viesti on /kahvi komento
+		log.Println("^ Kusi, ei oo /kahvi-komento")
+		return
+	}
+
+	var uusiKuvaus string = update.Message.CommandArguments()
+	var userID int = update.Message.From.ID
+	var aika int = update.Message.ReplyToMessage.Date
+
+	// Muuta kuvaus uuteen
+	sql := "update juonnit set kuvaus=$1 where user_id=$2 and aika=to_timestamp($3)"
+
+	rows, err := conn.Query(context.Background(), sql, uusiKuvaus, userID, aika)
+	if err != nil {
+		fmt.Println(rows)
+		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
+		os.Exit(1)
+	}
+	rows.Close()
+}
+
 func main() {
 
 	err1 := godotenv.Load(".env")
@@ -180,8 +218,11 @@ func main() {
 
 				msgStats := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgStats)
+
+			case "eiku":
+				log.Println("Eiku:", userName)
+				eiku(update)
 			}
 		}
-
 	}
 }
