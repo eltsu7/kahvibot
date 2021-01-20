@@ -224,7 +224,9 @@ func main() {
 				txt := "Hei minä olen kahvikanalabotti.\n\nKomennot:\n" +
 					"/kahvi [valinnainen kuvaus]\nKirjaa uuden kupillisen.\n" +
 					"/santsi\nKirjaa kupillisen, mutta kopioi kuvauksen sun edellisestä kupista.\n" +
-					"/kupit\nKertoo montako kuppia oot juonu"
+					"/kupit\nKertoo montako kuppia oot juonu.\n" +
+					"/viimeisimmat\nNäyttää max 5 viimeisintä kirjattua kuppia.\n" +
+					"/eiku [valinnainen kuvaus]\nVaihtaa kirjauksen kuvausta. Vastaa tällä aiempaan omaan kirjaukseen (kahvi-komentoon)."
 				msgHelp := tgbotapi.NewMessage(chatID, txt)
 				bot.Send(msgHelp)
 				log.Println("Help:", userName)
