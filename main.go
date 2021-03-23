@@ -80,23 +80,7 @@ func santsi(update tgbotapi.Update) string {
 
 func kupit(id int) string {
 
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
-	// Laske kupilliset ja palauta lukumäärä
-	var kuppeja int
-	sql := "select kupit from kuppilaskuri where user_id=$1"
-	err = conn.QueryRow(context.Background(), sql, id).Scan(&kuppeja)
-	if err == pgx.ErrNoRows {
-		kuppeja = 0
-	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
+	kuppeja := dbKupit(id)
 
 	var txt string
 	if kuppeja == 0 {
@@ -249,6 +233,15 @@ func main() {
 	updates, _ := bot.GetUpdatesChan(u) // todo: mitä jos tää heittää errorii??
 
 	for update := range updates {
+
+		if update.CallbackQuery != nil {
+			// fmt.Printf("%+v\n", update.CallbackQuery.Message.Chat)
+			bot.AnswerCallbackQuery(tgbotapi.NewCallback(update.CallbackQuery.ID, ""))
+			msg := painallus(update)
+			bot.Send(msg)
+			continue
+		}
+
 		if update.Message == nil {
 			continue
 		}
@@ -312,6 +305,11 @@ func main() {
 			case "poista":
 				log.Println("Poista:", userName)
 				poista(update)
+
+			case "napit":
+				log.Println("Napit:", userName)
+				viesti := napit(update)
+				bot.Send(viesti)
 			}
 		}
 	}
