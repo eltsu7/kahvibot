@@ -17,21 +17,21 @@ func dbViim(userID int) []string {
 	}
 	defer conn.Close(context.Background())
 
-	sql := "select kuvaus, max(aika) as aika from juonnit where user_id=$1 group by kuvaus order by aika desc limit 5"
-
+	sql := "select kuvaus from uniikitkahvit where user_id=$1 limit 5"
 	rows, _ := conn.Query(context.Background(), sql, userID)
 
 	var list []string
 
 	for rows.Next() {
 		var kahvi string
-		var asd string
-		rows.Scan(&kahvi, &asd)
-		log.Println(kahvi)
+
+		err := rows.Scan(&kahvi)
+		if err != nil {
+			log.Println(err)
+			os.Exit(1)
+		}
 		list = append(list, kahvi)
 	}
-
-	log.Println(list)
 
 	return list
 }

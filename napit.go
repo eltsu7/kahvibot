@@ -23,6 +23,18 @@ var backKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 
 var defaultText = "Hyvää päivää. Mitä sais olla?"
 
+func generoiNapit(nimet []string, datat []string) tgbotapi.InlineKeyboardMarkup {
+	var napit [][]tgbotapi.InlineKeyboardButton
+	for i, teksti := range nimet {
+		napit = append(napit,
+			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(teksti, datat[i])))
+	}
+
+	napit = append(napit, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Takaisin", "aloitus")))
+
+	return tgbotapi.NewInlineKeyboardMarkup(napit...)
+}
+
 func napit(update tgbotapi.Update) tgbotapi.MessageConfig {
 	chatID := update.Message.Chat.ID
 	var msg tgbotapi.MessageConfig
@@ -55,13 +67,13 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 		text = defaultText
 
 	case "santsi":
-		kb = backKeyboard
-		text = fmt.Sprint("Hienosti! Olet juonut ", dbKupit(userID), " kuppia kahvia.")
+		kahvit := dbViim(userID)
+		kb = generoiNapit(kahvit, kahvit)
+		text = fmt.Sprint("Mitäs laitetaan?")
 
 	case "tilastot":
 		kb = backKeyboard
-		kahvit := dbViim(userID)
-		text = fmt.Sprint("Olet juonut ", dbKupit(userID), " kuppia kahvia. ", kahvit[0])
+		text = fmt.Sprint("Olet juonut ", dbKupit(userID), " kuppia kahvia. ")
 	}
 
 	editKb := tgbotapi.NewEditMessageTextAndMarkup(chatID, msgID, text, kb)
