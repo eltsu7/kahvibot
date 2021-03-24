@@ -1,27 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
-	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"github.com/jackc/pgx"
 	"github.com/joho/godotenv"
 )
 
 func kirjaus(update tgbotapi.Update, kuvaus string) {
-
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
-	// Muuttujat updatesta
 	var aika int = update.Message.Date
 	var userID int = update.Message.From.ID
 	var updateID int = update.UpdateID
@@ -30,46 +18,15 @@ func kirjaus(update tgbotapi.Update, kuvaus string) {
 	}
 	var nimi string = update.Message.From.UserName
 
-	// Lisää uusi kupillinen
-	sql := "insert into juonnit (update_id, user_id, aika, kuvaus) values ($1, $2, to_timestamp($3), $4)"
-
-	rows, err := conn.Query(context.Background(), sql, updateID, userID, aika, kuvaus)
-	if err != nil {
-		fmt.Println(rows)
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	rows.Close()
-
-	// Päivitä nimi nimitauluun
-	sql = "INSERT INTO nimet VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username"
-
-	rows, err = conn.Query(context.Background(), sql, userID, nimi)
-	if err != nil {
-		fmt.Println(rows)
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	rows.Close()
+	dbKirjaus(updateID, userID, aika, kuvaus, nimi)
 }
 
 func santsi(update tgbotapi.Update) string {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
 
-	// Hae viimeisimmän kirjatun kupin kuvaus
-	var kuvaus string
-	sql := "SELECT kuvaus FROM juonnit WHERE user_id=$1 ORDER BY id DESC LIMIT 1;"
-	err = conn.QueryRow(context.Background(), sql, update.Message.From.ID).Scan(&kuvaus)
-	if err == pgx.ErrNoRows {
-		return "Ei edellistä kuppia."
-	} else if err != nil {
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
+	err, kuvaus := dbUusinKuppi(update.Message.From.ID)
+
+	if err != nil {
+		return err.Error()
 	}
 
 	// Lisää uusi kupillinen vanhalla kuvauksella
@@ -95,13 +52,6 @@ func kupit(id int) string {
 }
 
 func eiku(update tgbotapi.Update) {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
 	var komento string = update.Message.ReplyToMessage.Command()
 
 	if update.Message.ReplyToMessage == nil {
@@ -122,26 +72,10 @@ func eiku(update tgbotapi.Update) {
 	var userID int = update.Message.From.ID
 	var aika int = update.Message.ReplyToMessage.Date
 
-	// Muuta kuvaus uuteen
-	sql := "update juonnit set kuvaus=$1 where user_id=$2 and aika=to_timestamp($3)"
-
-	rows, err := conn.Query(context.Background(), sql, uusiKuvaus, userID, aika)
-	if err != nil {
-		fmt.Println(rows)
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	rows.Close()
+	dbEiku(uusiKuvaus, userID, aika)
 }
 
 func poista(update tgbotapi.Update) {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
 	var komento string = update.Message.ReplyToMessage.Command()
 
 	if update.Message.ReplyToMessage == nil {
@@ -161,46 +95,11 @@ func poista(update tgbotapi.Update) {
 	var userID int = update.Message.From.ID
 	var aika int = update.Message.ReplyToMessage.Date
 
-	// Poista tää
-	sql := "delete from juonnit where user_id=$1 and aika=to_timestamp($2)"
-
-	rows, err := conn.Query(context.Background(), sql, userID, aika)
-	if err != nil {
-		fmt.Println(rows)
-		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
-		os.Exit(1)
-	}
-	rows.Close()
+	dbPoista(userID, aika)
 }
 
 func viimeisimmat(userID int) string {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
-		os.Exit(1)
-	}
-	defer conn.Close(context.Background())
-
-	sql := "select kuvaus, aika from juonnit where user_id=$1 order by aika desc limit 5"
-
-	rows, _ := conn.Query(context.Background(), sql, userID)
-
-	var viestirivit string
-
-	for rows.Next() {
-		var kuvaus string
-		var aika time.Time
-
-		err := rows.Scan(&kuvaus, &aika)
-
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-
-		loc, _ := time.LoadLocation("Europe/Helsinki")
-		viestirivit += aika.In(loc).Format("2.1. 15:04") + " " + kuvaus + "\n"
-	}
+	viestirivit := dbViimeisimmat(userID)
 
 	if viestirivit == "" {
 		return "Tyhjältä näyttää.."

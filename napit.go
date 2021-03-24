@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -23,11 +24,13 @@ var backKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 
 var defaultText = "Hyvää päivää. Mitä sais olla?"
 
-func generoiNapit(nimet []string, datat []string) tgbotapi.InlineKeyboardMarkup {
+func generoiSantsiNapit(nimet []string, datat []string) tgbotapi.InlineKeyboardMarkup {
 	var napit [][]tgbotapi.InlineKeyboardButton
-	for i, teksti := range nimet {
+	for _, teksti := range nimet {
+		var data string = "santsi " + teksti
 		napit = append(napit,
-			tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(teksti, datat[i])))
+			tgbotapi.NewInlineKeyboardRow(
+				tgbotapi.NewInlineKeyboardButtonData(teksti, data)))
 	}
 
 	napit = append(napit, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Takaisin", "aloitus")))
@@ -67,13 +70,19 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 		text = defaultText
 
 	case "santsi":
-		kahvit := dbViim(userID)
-		kb = generoiNapit(kahvit, kahvit)
+		kahvit := dbViimeisimmatUniikit(userID)
+		kb = generoiSantsiNapit(kahvit, kahvit)
 		text = fmt.Sprint("Mitäs laitetaan?")
 
 	case "tilastot":
 		kb = backKeyboard
 		text = fmt.Sprint("Olet juonut ", dbKupit(userID), " kuppia kahvia. ")
+
+	default:
+		if strings.Contains(data, "santsi ") {
+			kb = defaultKeyboard
+			text = "Santsattu, mitäs sitte?"
+		}
 	}
 
 	editKb := tgbotapi.NewEditMessageTextAndMarkup(chatID, msgID, text, kb)
