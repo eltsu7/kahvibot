@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
 )
@@ -80,6 +81,9 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 
 	default:
 		if strings.Contains(data, "santsi ") {
+			kahvi := data[7:]
+			log.Println(kahvi)
+			dbKirjaus(userID, int(time.Now().Unix()), kahvi, "")
 			kb = defaultKeyboard
 			text = "Santsattu, mitäs sitte?"
 		}

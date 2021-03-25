@@ -24,3 +24,11 @@ create view kuppilaskuri as
     inner join nimet on juonnit.user_id = nimet.user_id
     group by nimet.user_id, username
     order by count(*) desc;
+
+create view uniikitkahvit as
+    SELECT juonnit.kuvaus,
+        max(juonnit.aika) AS aika,
+        max(juonnit.user_id) AS user_id
+    FROM juonnit
+    GROUP BY juonnit.kuvaus
+    ORDER BY (max(juonnit.aika)) DESC;

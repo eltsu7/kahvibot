@@ -12,13 +12,12 @@ import (
 func kirjaus(update tgbotapi.Update, kuvaus string) {
 	var aika int = update.Message.Date
 	var userID int = update.Message.From.ID
-	var updateID int = update.UpdateID
 	if kuvaus == "" {
 		kuvaus = update.Message.CommandArguments()
 	}
 	var nimi string = update.Message.From.UserName
 
-	dbKirjaus(updateID, userID, aika, kuvaus, nimi)
+	dbKirjaus(userID, aika, kuvaus, nimi)
 }
 
 func santsi(update tgbotapi.Update) string {

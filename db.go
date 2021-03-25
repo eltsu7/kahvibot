@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx"
 )
 
-func dbKirjaus(updateID int, userID int, aika int, kuvaus string, nimi string) {
+func dbKirjaus(userID int, aika int, kuvaus string, nimi string) {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -20,9 +20,9 @@ func dbKirjaus(updateID int, userID int, aika int, kuvaus string, nimi string) {
 	defer conn.Close(context.Background())
 
 	// Lisää uusi kupillinen
-	sql := "insert into juonnit (update_id, user_id, aika, kuvaus) values ($1, $2, to_timestamp($3), $4)"
+	sql := "insert into juonnit (user_id, aika, kuvaus) values ($1, to_timestamp($2), $3)"
 
-	rows, err := conn.Query(context.Background(), sql, updateID, userID, aika, kuvaus)
+	rows, err := conn.Query(context.Background(), sql, userID, aika, kuvaus)
 	if err != nil {
 		fmt.Println(rows)
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
