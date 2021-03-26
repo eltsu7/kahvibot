@@ -112,21 +112,26 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 	case "poista":
 		kahvit := dbViimeisimmat(userID, true)
 		kb = generoiPoistaNapit(kahvit)
-		text = "Minkä kahvin haluat unohtaa? (ei toimi vielä)"
+		text = "Minkä kahvin haluat unohtaa?"
 
 	default:
+
 		if strings.Contains(data, "santsi ") {
 			kahvi := data[7:]
-			log.Println(kahvi)
 			dbKirjaus(userID, int(time.Now().Unix()), kahvi, "")
 			kb = defaultKeyboard
 			text = "Santsattu, mitäs sitte?"
+
 		} else if strings.Contains(data, "poista ") {
-			kahvi := data[7:]
-			log.Println(kahvi)
 			// dbKirjaus(userID, int(time.Now().Unix()), kahvi, "")
+			aikaStr := strings.SplitN(data, " ", 3)[1]
+			aika, err := strconv.Atoi(aikaStr)
+			if err != nil {
+				panic(err)
+			}
+			dbPoista(userID, aika)
 			kb = defaultKeyboard
-			text = "Poistettu (ei oikeasti), mitäs sitte?"
+			text = "Poistettu, mitäs sitte?"
 		}
 	}
 
