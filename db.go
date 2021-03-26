@@ -64,7 +64,7 @@ func dbUusinKuppi(userID int) (error, string) {
 	return nil, kuvaus
 }
 
-func dbViimeisimmat(userID int) string {
+func dbViimeisimmat(userID int, timestamp bool) []string {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -76,7 +76,7 @@ func dbViimeisimmat(userID int) string {
 
 	rows, _ := conn.Query(context.Background(), sql, userID)
 
-	var viestirivit string
+	var viestirivit []string
 
 	for rows.Next() {
 		var kuvaus string
@@ -89,8 +89,13 @@ func dbViimeisimmat(userID int) string {
 			os.Exit(1)
 		}
 
-		loc, _ := time.LoadLocation("Europe/Helsinki")
-		viestirivit += aika.In(loc).Format("2.1. 15:04") + " " + kuvaus + "\n"
+		if timestamp {
+			viestirivit = append(viestirivit, fmt.Sprint(aika.Unix())+" "+kuvaus+"\n")
+		} else {
+			loc, _ := time.LoadLocation("Europe/Helsinki")
+			viestirivit = append(viestirivit, aika.In(loc).Format("2.1. 15:04")+" "+kuvaus+"\n")
+		}
+
 	}
 
 	return viestirivit

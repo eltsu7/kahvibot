@@ -98,12 +98,17 @@ func poista(update tgbotapi.Update) {
 }
 
 func viimeisimmat(userID int) string {
-	viestirivit := dbViimeisimmat(userID)
+	viestirivit := dbViimeisimmat(userID, false)
+	var tekstirivit string
 
-	if viestirivit == "" {
+	for _, s := range viestirivit {
+		tekstirivit += s
+	}
+
+	if tekstirivit == "" {
 		return "Tyhjältä näyttää.."
 	} else {
-		return "Sun viimeisimmät kupit:\n" + viestirivit
+		return "Sun viimeisimmät kupit:\n" + tekstirivit
 	}
 }
 
