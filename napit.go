@@ -95,6 +95,8 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 	var kb tgbotapi.InlineKeyboardMarkup
 	var text string
 
+	log.Println(userID, data)
+
 	switch data {
 	case "aloitus":
 		kb = defaultKeyboard
