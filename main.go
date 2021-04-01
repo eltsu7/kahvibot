@@ -75,17 +75,21 @@ func eiku(update tgbotapi.Update) {
 }
 
 func poista(update tgbotapi.Update) {
-	var komento string = update.Message.ReplyToMessage.Command()
 
 	if update.Message.ReplyToMessage == nil {
 		// Tsekkaa, että on vastattu edes johonkin
 		log.Println("^ Kusi, ei oo vastattu mihinkään")
 		return
-	} else if update.Message.From.ID != update.Message.ReplyToMessage.From.ID {
+	}
+
+	var komento string = update.Message.ReplyToMessage.Command()
+
+	if update.Message.From.ID != update.Message.ReplyToMessage.From.ID {
 		// User id:t ei mätsää
 		log.Println("^ Kusi, ei vastattu omaan viestiin")
 		return
-	} else if komento != "kahvi" && komento != "santsi" {
+	}
+	if komento != "kahvi" && komento != "santsi" {
 		// Tsekkaa, että vastattu viesti on kirjauskomento
 		log.Println("^ Kusi, ei oo kirjauskomento")
 		return
