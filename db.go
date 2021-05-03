@@ -11,6 +11,14 @@ import (
 	"github.com/jackc/pgx"
 )
 
+type Kirjaus struct {
+	kuvaus    string
+	userID    int
+	aika      time.Time
+	timestamp int64
+	teksti    string
+}
+
 func dbKirjaus(userID int, aika int, kuvaus string, nimi string) {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
@@ -42,7 +50,7 @@ func dbKirjaus(userID int, aika int, kuvaus string, nimi string) {
 	rows.Close()
 }
 
-func dbUusinKuppi(userID int) (error, string) {
+func dbUusinKuppi(userID int) (string, error) {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -55,16 +63,16 @@ func dbUusinKuppi(userID int) (error, string) {
 	sql := "SELECT kuvaus FROM juonnit WHERE user_id=$1 ORDER BY id DESC LIMIT 1;"
 	err = conn.QueryRow(context.Background(), sql, userID).Scan(&kuvaus)
 	if err == pgx.ErrNoRows {
-		return errors.New("Ei edellistä kuppia"), ""
+		return "", errors.New("ei edellistä kuppia")
 	} else if err != nil {
 		fmt.Fprintf(os.Stderr, "QueryRow failed: %v\n", err)
 		os.Exit(1)
 	}
 
-	return nil, kuvaus
+	return kuvaus, nil
 }
 
-func dbViimeisimmat(userID int, timestamp bool) []string {
+func dbViimeisimmat(userID int, offset int) []Kirjaus {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("PSQL_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
@@ -76,7 +84,7 @@ func dbViimeisimmat(userID int, timestamp bool) []string {
 
 	rows, _ := conn.Query(context.Background(), sql, userID)
 
-	var viestirivit []string
+	var kirjauslista []Kirjaus
 
 	for rows.Next() {
 		var kuvaus string
@@ -89,16 +97,13 @@ func dbViimeisimmat(userID int, timestamp bool) []string {
 			os.Exit(1)
 		}
 
-		if timestamp {
-			viestirivit = append(viestirivit, fmt.Sprint(aika.Unix())+" "+kuvaus+"\n")
-		} else {
-			loc, _ := time.LoadLocation("Europe/Helsinki")
-			viestirivit = append(viestirivit, aika.In(loc).Format("2.1. 15:04")+" "+kuvaus+"\n")
-		}
+		loc, _ := time.LoadLocation("Europe/Helsinki")
+		teksti := aika.In(loc).Format("2.1. 15:04") + " " + kuvaus
 
+		kirjauslista = append(kirjauslista, Kirjaus{kuvaus, userID, aika, aika.Unix(), teksti})
 	}
 
-	return viestirivit
+	return kirjauslista
 }
 
 func dbPoista(userID int, aika int) {

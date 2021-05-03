@@ -22,7 +22,7 @@ func kirjaus(update tgbotapi.Update, kuvaus string) {
 
 func santsi(update tgbotapi.Update) string {
 
-	err, kuvaus := dbUusinKuppi(update.Message.From.ID)
+	kuvaus, err := dbUusinKuppi(update.Message.From.ID)
 
 	if err != nil {
 		return err.Error()
@@ -40,9 +40,9 @@ func kupit(id int) string {
 
 	var txt string
 	if kuppeja == 0 {
-		txt = fmt.Sprint("Et taida olla kovin sivistynyt ihminen.")
+		txt = "Et taida olla kovin sivistynyt ihminen."
 	} else if kuppeja == 1 {
-		txt = fmt.Sprint("Olet juonut yhden kupin kahvia. Tsemppaatko kiitos.")
+		txt = "Olet juonut yhden kupin kahvia. Tsemppaatko kiitos."
 	} else {
 		txt = fmt.Sprint("Olet juonut ", kuppeja, " kuppia kahvia.")
 	}
@@ -51,13 +51,16 @@ func kupit(id int) string {
 }
 
 func eiku(update tgbotapi.Update) {
-	var komento string = update.Message.ReplyToMessage.Command()
 
 	if update.Message.ReplyToMessage == nil {
 		// Tsekkaa, että on vastattu edes johonkin
 		log.Println("^ Kusi, ei oo vastattu mihinkään")
 		return
-	} else if update.Message.From.ID != update.Message.ReplyToMessage.From.ID {
+	}
+
+	var komento string = update.Message.ReplyToMessage.Command()
+
+	if update.Message.From.ID != update.Message.ReplyToMessage.From.ID {
 		// User id:t ei mätsää
 		log.Println("^ Kusi, ei vastattu omaan viestiin")
 		return
@@ -102,11 +105,11 @@ func poista(update tgbotapi.Update) {
 }
 
 func viimeisimmat(userID int) string {
-	viestirivit := dbViimeisimmat(userID, false)
-	var tekstirivit string
+	var tekstirivit string = ""
+	kirjaukset := dbViimeisimmat(userID, 0)
 
-	for _, s := range viestirivit {
-		tekstirivit += s
+	for _, s := range kirjaukset {
+		tekstirivit += s.teksti + "\n"
 	}
 
 	if tekstirivit == "" {

@@ -21,11 +21,11 @@ var defaultKeyboard = tgbotapi.NewInlineKeyboardMarkup(
 	),
 )
 
-var backKeyboard = tgbotapi.NewInlineKeyboardMarkup(
-	tgbotapi.NewInlineKeyboardRow(
-		tgbotapi.NewInlineKeyboardButtonData("Takaisin", "aloitus"),
-	),
+var backButton = tgbotapi.NewInlineKeyboardRow(
+	tgbotapi.NewInlineKeyboardButtonData("Takaisin", "aloitus"),
 )
+
+var backKeyboard = tgbotapi.NewInlineKeyboardMarkup(backButton)
 
 var defaultText = "Hyvää päivää. Mitä sais olla?"
 
@@ -43,30 +43,15 @@ func generoiSantsiNapit(nimet []string) tgbotapi.InlineKeyboardMarkup {
 	return tgbotapi.NewInlineKeyboardMarkup(napit...)
 }
 
-func generoiPoistaNapit(kahvit []string) tgbotapi.InlineKeyboardMarkup {
+func generoiKahviNapit(kirjaukset []Kirjaus, etuliite string) [][]tgbotapi.InlineKeyboardButton {
 	var napit [][]tgbotapi.InlineKeyboardButton
-	for _, teksti := range kahvit {
 
-		timestampInt := strings.SplitN(teksti, " ", 2)[0]
-		kahviTeksti := strings.SplitN(teksti, " ", 2)[1]
-
-		timestamp, err := strconv.ParseInt(timestampInt, 10, 64)
-		if err != nil {
-			panic(err)
-		}
-		var aika time.Time = time.Unix(timestamp, 0)
-		loc, _ := time.LoadLocation("Europe/Helsinki")
-		aikaTeksti := aika.In(loc).Format("2.1. 15:04")
-		var nappiTeksti string = "Poista " + kahviTeksti + " (" + aikaTeksti + ")"
-		var nappiData string = "poista " + fmt.Sprint(timestamp) + " " + kahviTeksti
-		napit = append(napit,
-			tgbotapi.NewInlineKeyboardRow(
-				tgbotapi.NewInlineKeyboardButtonData(nappiTeksti, nappiData)))
+	for _, k := range kirjaukset {
+		var data = etuliite + " " + fmt.Sprint(k.timestamp) + " " + k.teksti
+		napit = append(napit, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData(k.teksti, data)))
 	}
 
-	napit = append(napit, tgbotapi.NewInlineKeyboardRow(tgbotapi.NewInlineKeyboardButtonData("Takaisin", "aloitus")))
-
-	return tgbotapi.NewInlineKeyboardMarkup(napit...)
+	return napit
 }
 
 func napit(update tgbotapi.Update) tgbotapi.MessageConfig {
@@ -112,8 +97,10 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 		text = fmt.Sprint("Olet juonut ", dbKupit(userID), " kuppia kahvia. ")
 
 	case "poista":
-		kahvit := dbViimeisimmat(userID, true)
-		kb = generoiPoistaNapit(kahvit)
+		kahvit := dbViimeisimmat(userID, 0)
+		napit := generoiKahviNapit(kahvit, "poista")
+		napit = append(napit, backButton)
+		kb = tgbotapi.NewInlineKeyboardMarkup(napit...)
 		text = "Minkä kahvin haluat unohtaa?"
 
 	default:
@@ -125,7 +112,6 @@ func painallus(update tgbotapi.Update) tgbotapi.EditMessageTextConfig {
 			text = "Santsattu, mitäs sitte?"
 
 		} else if strings.Contains(data, "poista ") {
-			// dbKirjaus(userID, int(time.Now().Unix()), kahvi, "")
 			aikaStr := strings.SplitN(data, " ", 3)[1]
 			aika, err := strconv.Atoi(aikaStr)
 			if err != nil {
